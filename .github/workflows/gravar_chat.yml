@@ -1,0 +1,39 @@
+name: Gravador de Chat Automatico
+
+on:
+  schedule:
+    - cron: '*/20 * * * *'
+  workflow_dispatch: 
+
+jobs:
+  gravar:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Copiar o repositorio
+      uses: actions/checkout@v4
+
+    - name: Configurar o Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Instalar o Gravador
+      run: |
+        pip install chat-downloader
+
+    - name: Capturar ate a live fechar
+      run: |
+        # Configurado para a live do Snopey.
+        # Ele vai gravar até a live fechar sozinha. O timeout de 1200s (20 minutos)
+        # serve apenas para salvar o progresso caso a live seja muito longa.
+        chat-downloader https://www.twitch.tv/snopey --output chat_snopey.json --timeout 1200 --format json
+
+    - name: Salvar o arquivo no GitHub
+      run: |
+        git config --global user.name 'Bot do Chat'
+        git config --global user.email 'bot@github.com'
+        
+        # Pega as mensagens da live e joga direto no repositório
+        git add chat_snopey.json
+        git commit -m "Chat do Snopey atualizado" || exit 0
+        git push
