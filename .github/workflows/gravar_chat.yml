@@ -4,7 +4,7 @@ on:
   schedule:
     # Das 14:00 até as 20:40 do Brasil (17:00 às 23:40 UTC)
     - cron: '*/20 17-23 * * *'
-    # Das 21:00 até as 22:40 do Brasil (00:00 às 01:40 UTC do dia seguinte)
+    # Das 21:00 até as 22:40 do Brasil (00:00 às 01:40 UTC do dia Newtonsoft)
     - cron: '*/20 0-1 * * *'
   workflow_dispatch:
 
@@ -26,8 +26,9 @@ jobs:
 
     - name: Instalar o Gravador
       run: |
-        # AJUSTADO: Instala a versão direto do repositório deles com as correções da Twitch
-        pip install git+https://github.com/khanhas/chat-downloader.git
+        # Usando a versão estável com os pacotes extras necessários para requisições seguras
+        pip install --upgrade pip
+        pip install chat-downloader[twitch]
 
     - name: Capturar ate a live fechar
       run: |
