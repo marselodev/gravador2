@@ -1,0 +1,54 @@
+name: Gravador de Chat snopey
+
+on:
+  schedule:
+    - cron: '*/20 * * * *' # Tenta rodar a cada 20 minutos
+  workflow_dispatch:
+
+jobs:
+  gravar_chat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # Limite máximo de 6 horas
+
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Cancelar se já houver outra gravação rodando
+        uses: styfle/cancel-workflow-action@0.11.0
+        with:
+          access_token: ${{ github.token }}
+          only_static_workflows: true 
+
+      - name: Configurar Fuso Horário Brasil
+        run: sudo timedatectl set-timezone America/Sao_Paulo
+
+      - name: Instalar Dependências
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg python3-pip
+          pip3 install --upgrade Pillow requests
+
+      - name: Verificar Live e Gravar Chat
+        env:
+          TWITCH_OAUTH: ${{ secrets.TWITCH_TOKEN }}
+        run: |
+          echo "Iniciando monitoramento..."
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          
+          if [ -f gravador_chat.py ]; then
+            # O GitHub vai esperar o Python fechar sozinho quando a live acabar
+            python3 gravador_chat.py
+          fi
+          
+          if [ -f gerar_video_chat.py ]; then
+            python3 gerar_video_chat.py "chat_snopey_${TIMESTAMP}.mp4" || true
+          fi
+
+      - name: Enviar Vídeo do Chat para o GitHub Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat-gravado-${{ github.run_id }}
+          path: "*.mp4"
+          retention-days: 3
