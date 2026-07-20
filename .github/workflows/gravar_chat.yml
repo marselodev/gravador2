@@ -26,12 +26,12 @@ jobs:
 
     - name: Instalar o Gravador
       run: |
-        pip install chat-downloader
+        # AJUSTADO: Instala a versão direto do repositório deles com as correções da Twitch
+        pip install git+https://github.com/khanhas/chat-downloader.git
 
     - name: Capturar ate a live fechar
       run: |
-        # AJUSTADO: Timeout de 21600 segundos (6 horas exatas, o limite maximo do GitHub)
-        # Se a live fechar antes, ele desliga sozinho e salva na hora!
+        # Timeout de 6 horas exatas (limite maximo do GitHub)
         python -m chat_downloader https://www.twitch.tv/sjokz --output chat_sjokz.json --timeout 21600 --format json
 
     - name: Salvar o arquivo no GitHub
