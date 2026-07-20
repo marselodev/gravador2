@@ -2,8 +2,9 @@ name: Gravador de Chat Automatico
 
 on:
   schedule:
-    - cron: '*/20 * * * *'
-  workflow_dispatch: 
+    # O robô agora acorda a cada 6 horas para assumir o plantão longo
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   gravar:
@@ -23,17 +24,14 @@ jobs:
 
     - name: Capturar ate a live fechar
       run: |
-        # Configurado para a live do Snopey.
-        # Ele vai gravar até a live fechar sozinha. O timeout de 1200s (20 minutos)
-        # serve apenas para salvar o progresso caso a live seja muito longa.
-        chat-downloader https://www.twitch.tv/snopey --output chat_snopey.json --timeout 1200 --format json
+        # O timeout agora é de 6 horas (21600 segundos).
+        # Se a live da Sjokz fechar ANTES disso, o programa encerra na mesma hora sozinho!
+        python -m chat_downloader https://www.twitch.tv/sjokz --output chat_sjokz.json --timeout 21600 --format json
 
     - name: Salvar o arquivo no GitHub
       run: |
         git config --global user.name 'Bot do Chat'
         git config --global user.email 'bot@github.com'
-        
-        # Pega as mensagens da live e joga direto no repositório
-        git add chat_snopey.json
-        git commit -m "Chat do Snopey atualizado" || exit 0
+        git add chat_sjokz.json
+        git commit -m "Chat da Sjokz atualizado apos o fim da live" || exit 0
         git push
