@@ -23,13 +23,20 @@ jobs:
       - name: Configurar Fuso Horário Brasil
         run: sudo timedatectl set-timezone America/Sao_Paulo
 
-      - name: Instalar Dependências
+      - name: Instalar Dependências e TwitchDownloader
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg python3-pip
+          sudo apt-get install -y ffmpeg python3-pip wget libfontconfig1
           pip3 install --upgrade Pillow requests
+          
+          # Baixa a versão oficial do TwitchDownloaderCLI para Linux
+          echo "Baixando TwitchDownloaderCLI..."
+          wget https://github.com/clrcrl/TwitchDownloader/releases/latest/download/TwitchDownloaderCLI-linux-x64.tar.gz
+          tar -xvf TwitchDownloaderCLI-linux-x64.tar.gz
+          chmod +x TwitchDownloaderCLI
+          sudo mv TwitchDownloaderCLI /usr/local/bin/
 
-      - name: Verificar Live e Gravar Chat
+      - name: Verificar Live e Gravar Chat Ao Vivo
         env:
           TWITCH_OAUTH: ${{ secrets.TWITCH_TOKEN }}
         run: |
@@ -37,12 +44,17 @@ jobs:
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           
           if [ -f gravador_chat.py ]; then
-            # O GitHub vai esperar o Python fechar sozinho quando a live acabar
+            # Grava o chat ao vivo no arquivo chat_log.txt
             python3 gravador_chat.py
           fi
           
-          if [ -f gerar_video_chat.py ]; then
-            python3 gerar_video_chat.py "chat_snopey_${TIMESTAMP}.mp4" || true
+          # Se o arquivo de chat foi criado e tem conteúdo, o TwitchDownloader gera o vídeo bonito
+          if [ -s chat_log.txt ]; then
+            echo "Transformando o arquivo de texto em vídeo com TwitchDownloaderCLI..."
+            # Renderiza o chat usando fontes padrão do Linux e gera o arquivo .mp4 direto
+            TwitchDownloaderCLI chatrender --input chat_log.txt --output "chat_snopey_${TIMESTAMP}.mp4" --font-size 14 --width 400 --height 600 || true
+          else
+            echo "Nenhum chat gravado para renderizar."
           fi
 
       - name: Enviar Vídeo do Chat para o GitHub Artifacts
