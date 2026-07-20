@@ -4,7 +4,7 @@ on:
   schedule:
     # Das 14:00 até as 20:40 do Brasil (17:00 às 23:40 UTC)
     - cron: '*/20 17-23 * * *'
-    # Das 21:00 até as 22:40 do Brasil (00:00 às 01:40 UTC do dia Newtonsoft)
+    # Das 21:00 até as 22:40 do Brasil (00:00 às 01:40 UTC do dia seguinte)
     - cron: '*/20 0-1 * * *'
   workflow_dispatch:
 
@@ -26,14 +26,18 @@ jobs:
 
     - name: Instalar o Gravador
       run: |
-        # Usando a versão estável com os pacotes extras necessários para requisições seguras
         pip install --upgrade pip
-        pip install chat-downloader[twitch]
+        # Instala a ferramenta focada estritamente na API nova da Twitch
+        pip install tcd
 
     - name: Capturar ate a live fechar
       run: |
-        # Timeout de 6 horas exatas (limite maximo do GitHub)
-        python -m chat_downloader https://www.twitch.tv/sjokz --output chat_sjokz.json --timeout 21600 --format json
+        # Executa o novo gravador focado no canal da sjokz
+        # Ele vai rodar gravando o chat em tempo real e salvar em formato JSON
+        tcd --channel sjokz --format json
+        
+        # Como o tcd gera um nome padrão, vamos renomear para manter seu padrão antigo
+        mv *.json chat_sjokz.json || echo "Nao gerou arquivo ainda"
 
     - name: Salvar o arquivo no GitHub
       if: always() 
