@@ -2,32 +2,28 @@ name: Agendador de Chat do Snopey
 
 on:
   schedule:
-    # Roda a cada 15 minutos entre 17:00 e 01:00 UTC (14h às 22h no horário de Brasília)
+    # Executa a cada 15 minutos entre as 14h e 22h (Horário de Brasília)
     - cron: '*/15 17-23 * * *'
     - cron: '*/15 0-1 * * *'
-  workflow_dispatch: # Permite acionar manualmente no GitHub se você quiser testar
+  workflow_dispatch: # Permite ligar o robô manualmente para testar
 
 jobs:
   gravador_job:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Clonar o Repositório
+    - name: Clonar Repositório
       uses: actions/checkout@v3
 
-    - name: Configurar ambiente Python
+    - name: Configurar Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.x'
 
-    - name: Instalar bibliotecas
-      run: |
-        pip install requests chatdownloader
+    - name: Instalar ChatDownloader
+      run: pip install chatdownloader
 
-    - name: Rodar Gravador do Chat
-      env:
-        TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
-        TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+    - name: Executar Gravador
       run: python gravador.py
 
     - name: Disponibilizar o arquivo JSON para Download
