@@ -1,4 +1,4 @@
-name: Agendador de Chat do Snopey
+name: gravador Chat
 
 on:
   schedule:
