@@ -21,15 +21,17 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Instalar Streamlink
-      run: pip install streamlink
+    - name: Instalar Dependências do Sistema para Renderização
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libicu-dev libfontconfig1
 
-    - name: Executar Gravador
+    - name: Executar Gravador e Gerador de Vídeo
       run: python gravador.py
 
-    - name: Disponibilizar o arquivo JSON para Download
+    - name: Disponibilizar o arquivo de Vídeo MP4 para Download
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: chat-snopey-json
-        path: "*.json"
+        name: chat-snopey-video
+        path: "*.mp4"
