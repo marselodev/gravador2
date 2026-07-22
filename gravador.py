@@ -5,7 +5,6 @@ import socket
 import subprocess
 import time
 from datetime import datetime, timezone
-import urllib.request
 
 # --- CONFIGURAÇÕES ---
 SERVER = "irc.chat.twitch.tv"
@@ -15,13 +14,12 @@ CHANNEL = "#snopey"  # Canal a ser gravado (com #)
 STREAMER_NAME = CHANNEL.replace("#", "")
 
 def verificar_se_esta_ao_vivo(streamer):
-    """Verifica se o canal está online usando o streamlink de forma rápida"""
+    """Verifica se o canal está online usando o streamlink"""
     try:
         cmd = ["streamlink", "--json", f"twitch.tv/{streamer}"]
         resultado = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
         if resultado.returncode == 0:
             dados = json.loads(resultado.stdout)
-            # Se retornar fluxos disponíveis (como 1080p, 720p), está online
             if dados and "streams" in dados:
                 return True
     except Exception:
@@ -30,7 +28,6 @@ def verificar_se_esta_ao_vivo(streamer):
 
 def extrair_dados_irc(linha):
     match = re.search(r"^:(\w+)!\w+@\w+\.tmi\.twitch\.tv PRIVMSG #[^\s]+ :(.*)$", linha)
-    print(f"Debug IRC: {linha.strip()}")  # Linha de debug para ver mensagens no log
     if match:
         return match.group(1), match.group(2).strip()
     return None, None
@@ -65,18 +62,16 @@ def renderizar_video_chat(json_file, output_file):
         print(f"Erro ao renderizar o vídeo: {e}")
 
 def monitorar_e_gravar():
-    print(f"Procurando por live no canal: {STREAMER_NAME}...")
+    print(f"Verificando se o canal {STREAMER_NAME} está ao vivo...")
     
-    # 1. Fica aguardando o streamer abrir a live
-    while True:
-        if verificar_se_esta_ao_vivo(STREAMER_NAME):
-            print(f"\n[!] LIVE DETECTADA! Iniciando gravação do chat de {CHANNEL}...")
-            break
-        else:
-            print(f"Streamer {STREAMER_NAME} está offline. Verificando novamente em 60 segundos...")
-            time.sleep(60)
+    # 1. Verifica uma única vez se está online
+    if not verificar_se_esta_ao_vivo(STREAMER_NAME):
+        print(f"[!] Streamer {STREAMER_NAME} está OFFLINE. Encerrando o robô imediatamente para economizar recursos.")
+        return  # Encerra o script na hora!
 
-    # 2. Conecta ao chat assim que a live abre
+    print(f"\n[!] LIVE DETECTADA! Iniciando gravação do chat de {CHANNEL}...")
+
+    # 2. Conecta ao chat assim que a live é confirmada
     sock = socket.socket()
     sock.connect((SERVER, PORT))
     sock.send(f"NICK {NICK}\r\n".encode("utf-8"))
@@ -85,16 +80,13 @@ def monitorar_e_gravar():
     comments = []
     buffer = ""
     start_time = time.time()
-    
-    # Configura o socket como não-bloqueante para checar se a live caiu
     sock.setblocking(False)
 
     print("Gravando chat em tempo real...")
 
     try:
         while True:
-            # A cada 2 minutos (120 segundos), verifica se a live ainda está ligada
-            # (Caso queira testar mais rápido, pode diminuir este tempo)
+            # A cada 2 minutos verifica se a live ainda está ligada
             if int(time.time() - start_time) % 120 == 0:
                 if not verificar_se_esta_ao_vivo(STREAMER_NAME):
                     print("\n[!] A live foi desligada pelo streamer. Encerrando gravação...")
@@ -155,7 +147,6 @@ def monitorar_e_gravar():
                         comments.append(comentario)
                         print(f"[{offset_segundos}s] {usuario}: {mensagem}")
             except BlockingIOError:
-                # Se não houver dados novos no socket no momento, aguarda um pouco para não travar a CPU
                 time.sleep(0.5)
 
     except Exception as e:
@@ -189,7 +180,6 @@ def monitorar_e_gravar():
         with open(nome_json, "w", encoding="utf-8") as f:
             json.dump(json_compativel, f, ensure_ascii=False, indent=2)
 
-        # Renderiza e transforma em vídeo MP4 pronto para download
         renderizar_video_chat(nome_json, nome_video)
 
 if __name__ == "__main__":
