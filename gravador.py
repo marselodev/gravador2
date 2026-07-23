@@ -32,46 +32,16 @@ def extrair_dados_irc(linha):
         return match.group(1), match.group(2).strip()
     return None, None
 
-def renderizar_video_chat(json_file, output_file):
-    print("\nIniciando a renderização do vídeo do chat com TwitchDownloaderCLI...")
-    cli_path = "./TwitchDownloaderCLI"
-    
-    if not os.path.exists(cli_path):
-        print("Baixando TwitchDownloaderCLI...")
-        subprocess.run([
-            "curl", "-L", 
-            "https://github.com/Lay295/TwitchDownloader/releases/download/1.55.0/TwitchDownloaderCLI-Linux-X64",
-            "-o", cli_path
-        ], check=True)
-        subprocess.run(["chmod", "+x", cli_path], check=True)
-
-    cmd = [
-        cli_path, "chatrender",
-        "--input", json_file,
-        "--output", output_file,
-        "--resolution", "400", "800",
-        "--framerate", "30",
-        "--font-size", "14",
-        "--background-color", "#00FF00"  # Fundo verde cromaqui puro
-    ]
-    
-    try:
-        subprocess.run(cmd, check=True)
-        print(f"Vídeo gerado com sucesso: {output_file}")
-    except subprocess.CalledProcessError as e:
-        print(f"Erro ao renderizar o vídeo: {e}")
-
 def monitorar_e_gravar():
     print(f"Verificando se o canal {STREAMER_NAME} está ao vivo...")
     
-    # 1. Verifica uma única vez se está online
+    # 1. Se estiver offline, encerra imediatamente para não gastar recursos
     if not verificar_se_esta_ao_vivo(STREAMER_NAME):
-        print(f"[!] Streamer {STREAMER_NAME} está OFFLINE. Encerrando o robô imediatamente para economizar recursos.")
-        return  # Encerra o script na hora!
+        print(f"[!] Streamer {STREAMER_NAME} está OFFLINE. Encerrando o robô imediatamente.")
+        return  
 
     print(f"\n[!] LIVE DETECTADA! Iniciando gravação do chat de {CHANNEL}...")
 
-    # 2. Conecta ao chat assim que a live é confirmada
     sock = socket.socket()
     sock.connect((SERVER, PORT))
     sock.send(f"NICK {NICK}\r\n".encode("utf-8"))
@@ -161,7 +131,6 @@ def monitorar_e_gravar():
 
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         nome_json = f"chat_{STREAMER_NAME}_{timestamp}.json"
-        nome_video = f"chat_{STREAMER_NAME}_{timestamp}.mp4"
 
         json_compativel = {
             "format": "JSON",
@@ -180,7 +149,7 @@ def monitorar_e_gravar():
         with open(nome_json, "w", encoding="utf-8") as f:
             json.dump(json_compativel, f, ensure_ascii=False, indent=2)
 
-        renderizar_video_chat(nome_json, nome_video)
+        print(f"\n[Sucesso!] Arquivo JSON do chat gerado: {nome_json}")
 
 if __name__ == "__main__":
     monitorar_e_gravar()
