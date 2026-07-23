@@ -52,7 +52,7 @@ def renderizar_video_chat(json_file, output_file):
         "--resolution", "400", "800",
         "--framerate", "30",
         "--font-size", "14",
-        "--background-color", "#00000000"
+        "--background-color", "#00FF00"  # Fundo verde cromaqui puro
     ]
     
     try:
