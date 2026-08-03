@@ -1,202 +1,47 @@
-import json
-import os
-import re
-import socket
-import subprocess
-import time
-from datetime import datetime, timezone
+name: Gravador de Chat Twitch
 
-SERVER = "irc.chat.twitch.tv"
-PORT = 6667
-NICK = "justinfan12345"
-CHANNEL = "#snopey"
-STREAMER_NAME = CHANNEL.replace("#", "")
+on:
+  schedule:
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
 
-def verificar_se_esta_ao_vivo(streamer):
-    try:
-        cmd = ["streamlink", "--json", f"twitch.tv/{streamer}"]
-        resultado = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-        if resultado.returncode == 0:
-            dados = json.loads(resultado.stdout)
-            if dados and "streams" in dados:
-                return True
-    except Exception:
-        pass
-    return False
+jobs:
+  gravar_e_salvar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
 
-def extrair_dados_irc(linha):
-    tags = {}
-    usuario = None
-    mensagem = None
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
 
-    if linha.startswith("@"):
-        partes = linha.split(" ", 2)
-        raw_tags = partes[0][1:].split(";")
-        for tag in raw_tags:
-            if "=" in tag:
-                k, v = tag.split("=", 1)
-                tags[k] = v
-        linha_restante = " ".join(partes[1:])
-    else:
-        linha_restante = linha
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    match = re.search(r"^:(\w+)!\w+@\w+\.tmi\.twitch\.tv PRIVMSG #[^\s]+ :(.*)$", linha_restante)
-    if match:
-        usuario = match.group(1)
-        mensagem = match.group(2).strip()
+      - name: Instalar Dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install streamlink
 
-    return tags, usuario, mensagem
+      - name: Configurar Fuso Horário Brasil
+        run: sudo timedatectl set-timezone America/Sao_Paulo
 
-def formatar_badges(badges_raw):
-    if not badges_raw:
-        return []
-    
-    badges_lista = []
-    for b in badges_raw.split(","):
-        if "/" in b:
-            badge_id, version = b.split("/", 1)
-            badges_lista.append({
-                "_id": badge_id,
-                "version": version
-            })
-    return badges_lista
+      - name: Verificar Horário Permitido (14h às 22h)
+        run: |
+          HORA_ATUAL=$(date +%H)
+          echo "Hora atual no Brasil: ${HORA_ATUAL}h"
+          if [ "$HORA_ATUAL" -lt 14 ] || [ "$HORA_ATUAL" -ge 22 ]; then
+            echo "[!] Fora do horário de funcionamento (14h às 22h). Encerrando."
+            exit 0
+          fi
 
-def monitorar_e_gravar():
-    print(f"Verificando se o canal {STREAMER_NAME} está ao vivo...")
-    
-    if not verificar_se_esta_ao_vivo(STREAMER_NAME):
-        print(f"[!] Streamer {STREAMER_NAME} está OFFLINE. Encerrando o robô imediatamente.")
-        return  
+      - name: Executar o seu Gravador de Chat
+        run: python3 gravador_chat.py
 
-    print(f"\n[!] LIVE DETECTADA! Iniciando gravação do chat de {CHANNEL}...")
-
-    sock = socket.socket()
-    sock.connect((SERVER, PORT))
-    
-    sock.send("CAP REQ :twitch.tv/tags twitch.tv/commands\r\n".encode("utf-8"))
-    sock.send(f"NICK {NICK}\r\n".encode("utf-8"))
-    sock.send(f"JOIN {CHANNEL}\r\n".encode("utf-8"))
-
-    comments = []
-    buffer = ""
-    start_time = time.time()
-    sock.setblocking(False)
-
-    print("Gravando chat em tempo real com CORES e BADGES...")
-
-    try:
-        while True:
-            if int(time.time() - start_time) % 120 == 0:
-                if not verificar_se_esta_ao_vivo(STREAMER_NAME):
-                    print("\n[!] A live foi desligada pelo streamer. Encerrando gravação...")
-                    break
-
-            try:
-                dados = sock.recv(4096).decode("utf-8", errors="ignore")
-                if not dados:
-                    break
-
-                buffer += dados
-                linhas = buffer.split("\r\n")
-                buffer = linhas.pop()
-
-                for linha in linhas:
-                    if not linha:
-                        continue
-
-                    if linha.startswith("PING"):
-                        sock.send("PONG :tmi.twitch.tv\r\n".encode("utf-8"))
-                        continue
-
-                    tags, usuario, mensagem = extrair_dados_irc(linha)
-
-                    if usuario and mensagem:
-                        offset_segundos = round(time.time() - start_time, 3)
-
-                        cor_usuario = tags.get("color")
-                        if not cor_usuario:
-                            cor_usuario = "#FFFFFF"
-
-                        user_badges = formatar_badges(tags.get("badges", ""))
-
-                        comentario = {
-                            "_id": f"c_{len(comments) + 1}",
-                            "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-                            "channel_id": "0",
-                            "content_type": "video",
-                            "content_id": "0",
-                            "content_offset_seconds": int(offset_segundos),
-                            "commenter": {
-                                "display_name": tags.get("display-name", usuario),
-                                "_id": tags.get("user-id", "0"),
-                                "name": usuario.lower(),
-                                "bio": None,
-                                "created_at": "2020-01-01T00:00:00Z",
-                                "updated_at": "2020-01-01T00:00:00Z",
-                                "logo": None
-                            },
-                            "message": {
-                                "body": mensagem,
-                                "bits_spent": int(tags.get("bits", 0)),
-                                "fragments": [{"text": mensagem, "emoticon": None}],
-                                "user_badges": user_badges,
-                                "user_color": cor_usuario,
-                                "emoticons": []
-                            }
-                        }
-
-                        comments.append(comentario)
-                        print(f"[{offset_segundos}s] {usuario} ({cor_usuario}): {mensagem}")
-            except BlockingIOError:
-                time.sleep(0.5)
-
-    except Exception as e:
-        print(f"Erro durante a gravação: {e}")
-
-    finally:
-        sock.close()
-
-        if not comments:
-            print("Nenhum comentário foi gravado durante a transmissão.")
-            return
-
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        nome_json = f"chat_{STREAMER_NAME}_{timestamp}.json"
-
-        duracao_final = comments[-1]["content_offset_seconds"] if comments else 0
-
-        json_compativel = {
-            "FileInfo": {
-                "Version": {
-                    "Major": 1,
-                    "Minor": 3,
-                    "Patch": 1
-                },
-                "CreatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.0000000-00:00"),
-                "UpdatedAt": "0001-01-01T00:00:00"
-            },
-            "streamer": {
-                "name": STREAMER_NAME.upper(),
-                "id": 0
-            },
-            "video": {
-                "title": f"Chat de {CHANNEL}",
-                "description": None,
-                "id": "0",
-                "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "start": 0,
-                "end": duracao_final,
-                "length": duracao_final,
-                "viewCount": 0,
-                "game": "Unknown"
-            },
-            "comments": comments
-        }
-
-        with open(nome_json, "w", encoding="utf-8") as f:
-            json.dump(json_compativel, f, ensure_ascii=False, indent=4)
-
-        print(f"\n[Sucesso!] Arquivo JSON do chat gerado com suporte a cores e badges: {nome_json}")
-
-if __name__ == "__main__":
-    monitorar_e_gravar()
+      - name: Salvar Chat como Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chat-twitch-snopey
+          path: chat_*.json
