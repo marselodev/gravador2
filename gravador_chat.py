@@ -13,6 +13,9 @@ NICK = "justinfan12345"  # Login anônimo
 CHANNEL = "#snopey"      # Canal a ser gravado (com #)
 STREAMER_NAME = CHANNEL.replace("#", "")
 
+# Limite máximo de segurança em segundos (Ex: 5 horas e meia, para caber no limite do GitHub Actions)
+TEMPO_LIMITE_MAXIMO = int(5.5 * 3600)
+
 def verificar_se_esta_ao_vivo(streamer):
     """Verifica se o canal está online usando o streamlink"""
     try:
@@ -83,8 +86,14 @@ def monitorar_e_gravar():
 
     try:
         while True:
-            # Checa se o streamer caiu a cada 120 segundos sem travar o loop
             tempo_atual = time.time()
+
+            # 1. Proteção de limite de tempo máximo (Evita estourar o limite do GitHub Actions)
+            if (tempo_atual - start_time) >= TEMPO_LIMITE_MAXIMO:
+                print("\n[!] Limite máximo de tempo atingido para esta sessão. Salvando e encerrando...")
+                break
+
+            # 2. Checa se o streamer caiu a cada 120 segundos sem travar o loop
             if tempo_atual - ultima_verificacao >= 120:
                 ultima_verificacao = tempo_atual
                 if not verificar_se_esta_ao_vivo(STREAMER_NAME):
