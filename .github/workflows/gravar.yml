@@ -6,7 +6,7 @@ on:
     - cron: '*/15 * * * *' # Checa a cada 15 minutos se o streamer está online
 
 jobs:
-  record:
+  gravar:
     runs-on: ubuntu-latest
 
     steps:
