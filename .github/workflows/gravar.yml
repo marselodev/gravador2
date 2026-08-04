@@ -1,4 +1,4 @@
-name: Gravador de Chat Twitch
+name: Gravador
 
 on:
   workflow_dispatch: # Permite rodar manualmente a qualquer momento
@@ -24,7 +24,7 @@ jobs:
         pip install streamlink
 
     - name: Executar o robô de gravação
-      run: python gravar_chat.py
+      run: python gravador_chat.py
 
     - name: Salvar arquivo JSON gravado no GitHub
       uses: stefanzweifel/git-auto-commit-action@v5
