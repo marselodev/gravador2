@@ -9,11 +9,11 @@ from datetime import datetime, timezone
 # --- CONFIGURAÇÕES ---
 SERVER = "irc.chat.twitch.tv"
 PORT = 6667
-NICK = "justinfan12345"  # Login anônimo
+NICK = "justinfan12345"  # Login anônimo do IRC
 CHANNEL = "#snopey"      # Canal a ser gravado (com #)
 STREAMER_NAME = CHANNEL.replace("#", "")
 
-# Limite máximo de segurança em segundos (Ex: 5 horas e meia, para caber no limite do GitHub Actions)
+# Limite máximo de segurança em segundos (5.5 horas) para caber no limite do GitHub Actions
 TEMPO_LIMITE_MAXIMO = int(5.5 * 3600)
 
 def verificar_se_esta_ao_vivo(streamer):
@@ -88,12 +88,12 @@ def monitorar_e_gravar():
         while True:
             tempo_atual = time.time()
 
-            # 1. Proteção de limite de tempo máximo (Evita estourar o limite do GitHub Actions)
+            # 1. Proteção de limite de tempo máximo (GitHub Actions)
             if (tempo_atual - start_time) >= TEMPO_LIMITE_MAXIMO:
                 print("\n[!] Limite máximo de tempo atingido para esta sessão. Salvando e encerrando...")
                 break
 
-            # 2. Checa se o streamer caiu a cada 120 segundos sem travar o loop
+            # 2. Checa se o streamer caiu a cada 120 segundos
             if tempo_atual - ultima_verificacao >= 120:
                 ultima_verificacao = tempo_atual
                 if not verificar_se_esta_ao_vivo(STREAMER_NAME):
