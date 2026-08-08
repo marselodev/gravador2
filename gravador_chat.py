@@ -188,9 +188,9 @@ def monitorar_e_gravar():
             "video": {
                 "title": f"Chat de {CHANNEL}",
                 "id": "0",
-                "duration": duracao_final,
-                "start": 0,
-                "end": duracao_final
+                "duration": str(duracao_final),
+                "start": "0",
+                "end": str(duracao_final)
             },
             "comments": comments
         }
