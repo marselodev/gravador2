@@ -4,6 +4,7 @@ import re
 import socket
 import subprocess
 import time
+import signal
 from datetime import datetime, timezone
 
 # --- CONFIGURAÇÕES ---
@@ -15,6 +16,19 @@ STREAMER_NAME = CHANNEL.replace("#", "")
 
 # Limite máximo de segurança em segundos (5.5 horas) para caber no limite do GitHub Actions
 TEMPO_LIMITE_MAXIMO = int(5.5 * 3600)
+
+# Flag para controlar quando o bot deve parar de gravar e salvar o arquivo
+rodando = True
+
+def tratar_cancelamento(signum, frame):
+    """Detecta quando o GitHub Actions tenta cancelar a execução e salva o arquivo antes de morrer."""
+    global rodando
+    print("\n[!] Sinal de interrupção recebido (Cancelado no GitHub). Salvando o chat gravado até agora...")
+    rodando = False
+
+# Associa o cancelamento do GitHub a nossa função de salvamento
+signal.signal(signal.SIGINT, tratar_cancelamento)
+signal.signal(signal.SIGTERM, tratar_cancelamento)
 
 def verificar_se_esta_ao_vivo(streamer):
     """Verifica se o canal está online usando o streamlink"""
@@ -30,7 +44,6 @@ def verificar_se_esta_ao_vivo(streamer):
     return False
 
 def parse_irc_tags(tag_str):
-    """Converte a string de tags no formato key=value em um dicionário python"""
     tags = {}
     if not tag_str:
         return tags
@@ -41,7 +54,6 @@ def parse_irc_tags(tag_str):
     return tags
 
 def extrair_dados_irc(linha):
-    """Extrai usuário, mensagem e tags de uma linha IRC tratada"""
     tags = {}
     if linha.startswith("@"):
         partes = linha.split(" ", 2)
@@ -71,7 +83,7 @@ def monitorar_e_gravar():
     sock = socket.socket()
     sock.connect((SERVER, PORT))
     
-    # Timeout de 1s para o socket não travar o loop quando o chat ficar em silêncio
+    # Timeout de 1s para permitir que o loop verifique a variável 'rodando'
     sock.settimeout(1.0)
 
     # Solicita capacidades avançadas da Twitch (Cores, Emotes, IDs)
@@ -84,13 +96,13 @@ def monitorar_e_gravar():
     start_time = time.time()
     ultima_verificacao = time.time()
 
-    print("Gravando chat em tempo real...")
+    print("Gravando chat em tempo real... (Pressione 'Cancel workflow' no GitHub para finalizar e salvar)")
 
     try:
-        while True:
+        while rodando:
             tempo_atual = time.time()
 
-            # 1. Proteção de limite de tempo máximo (GitHub Actions)
+            # 1. Proteção de limite de tempo máximo
             if (tempo_atual - start_time) >= TEMPO_LIMITE_MAXIMO:
                 print("\n[!] Limite máximo de tempo atingido para esta sessão. Salvando e encerrando...")
                 break
@@ -162,7 +174,9 @@ def monitorar_e_gravar():
 
                         comments.append(comentario)
                         print(f"[{offset_segundos}s] {usuario}: {mensagem}")
+            
             except socket.timeout:
+                # O timeout de 1s serve apenas para o código chegar aqui e o "while rodando" ser verificado novamente
                 continue
 
     except Exception as e:
@@ -172,27 +186,41 @@ def monitorar_e_gravar():
         sock.close()
 
         if not comments:
-            print("Nenhum comentário foi gravado durante a transmissão.")
+            print("Nenhum comentário foi gravado. O arquivo JSON não será gerado.")
             return
 
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         nome_json = f"chat_{STREAMER_NAME}_{timestamp}.json"
+        
+        # Garante que os valores de duração e final do vídeo sejam do tipo Float
+        duracao_final = float(comments[-1]["content_offset_seconds"]) if comments else 0.0
 
-        duracao_final = comments[-1]["content_offset_seconds"] if comments else 0.0
-
+        # Estrutura JSON exata e atualizada exigida pelo TwitchDownloader
         json_compativel = {
-            "format": "JSON",
-            "file_version": 1,
+            "FileInfo": {
+                "Version": {
+                    "Major": 1,
+                    "Minor": 1,
+                    "Build": 0,
+                    "Revision": 0
+                },
+                "CreatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "UpdatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            },
             "streamer": {
                 "name": STREAMER_NAME,
                 "id": 0
             },
             "video": {
                 "title": f"Chat de {CHANNEL}",
+                "description": "",
                 "id": "0",
-                "duration": str(duracao_final),
-                "start": "0",
-                "end": str(duracao_final)
+                "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "start": 0.0,
+                "end": duracao_final,
+                "length": duracao_final,
+                "viewCount": 0,
+                "game": ""
             },
             "comments": comments
         }
@@ -200,7 +228,7 @@ def monitorar_e_gravar():
         with open(nome_json, "w", encoding="utf-8") as f:
             json.dump(json_compativel, f, ensure_ascii=False, indent=2)
 
-        print(f"\n[Sucesso!] Arquivo JSON do chat gerado: {nome_json}")
+        print(f"\n[Sucesso!] Arquivo JSON do chat gerado e salvo: {nome_json}")
 
 if __name__ == "__main__":
     monitorar_e_gravar()
