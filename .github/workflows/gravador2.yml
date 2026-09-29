@@ -1,0 +1,73 @@
+name: gravador2
+
+on:
+  schedule:
+    # Roda a cada 15 minutos, entre 14:00 e 22:59 (Horário de Brasília)
+    - cron: '*/15 17-23,0-1 * * *'
+  workflow_dispatch:
+
+# Evita que o GitHub abra duas gravações ao mesmo tempo
+concurrency:
+  group: gravacao
+  cancel-in-progress: false
+
+jobs:
+  gravar_tudo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout do Codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Fuso Horario Brasil
+        run: sudo timedatectl set-timezone America/Sao_Paulo
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Dependencias (Streamlink, Websocket e Rclone)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rclone
+          pip install --upgrade streamlink websocket-client
+
+      - name: Configurar o Google Drive (Rclone)
+        run: |
+          mkdir -p ~/.config/rclone
+          cat << 'EOF' > ~/.config/rclone/rclone.conf
+          ${{ secrets.RCLONE_CONFIG_DATA }}
+          EOF
+
+      - name: Gravar Video e Chat Sincronizados
+        run: |
+          echo "Checando se o canal snopey esta ao vivo na Kick..."
+          DATA=$(date +%d-%m-%Y)
+          
+          if streamlink kick.com/snopey best --stream-url > /dev/null 2>&1; then
+            echo "Canal online na Kick! Iniciando gravacao sincronizada..."
+            python chat2.py &
+            CHAT_PID=$!
+            sleep 3
+            
+            # Comando de gravação alterado para a Kick
+            streamlink kick.com/snopey best -o "snopey_kick_${DATA}.mp4"
+            
+            kill -SIGINT $CHAT_PID 2>/dev/null || true
+            sleep 5 
+          else
+            echo "Canal offline na Kick. Nenhuma gravacao iniciada."
+          fi
+
+      - name: Enviar Video E Chat para o Google Drive
+        if: always()
+        run: |
+          if ls *.mp4 1> /dev/null 2>&1; then
+            echo "Enviando arquivos para o Google Drive..."
+            rclone copy . gdrive01:Lives_Gravadas --include "*.mp4" --include "*.json" -v
+            rm -f *.mp4 *.json
+          else
+            echo "Nenhum arquivo para enviar."
+          fi
