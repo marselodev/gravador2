@@ -52,11 +52,8 @@ jobs:
             CHAT_PID=$!
             sleep 3
             
-            # Parametros adicionados para evitar que a gravacao caia com oscilacoes da Kick
-            streamlink kick.com/snopey best \
-              --stream-segment-attempts 5 \
-              --stream-timeout 30 \
-              -o "snopey_kick_${DATA}.mp4"
+            # Comando de gravação alterado para a Kick
+            streamlink kick.com/snopey best -o "snopey_kick_${DATA}.mp4"
             
             kill -SIGINT $CHAT_PID 2>/dev/null || true
             sleep 5 
