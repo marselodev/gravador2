@@ -28,11 +28,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Instalar Dependencias (Streamlink, Websocket e Rclone)
+      - name: Instalar Dependencias (Streamlink e Rclone)
         run: |
           sudo apt-get update
           sudo apt-get install -y rclone
-          pip install --upgrade streamlink websocket-client
+          pip install --upgrade streamlink
 
       - name: Configurar o Google Drive (Rclone)
         run: |
@@ -41,33 +41,25 @@ jobs:
           ${{ secrets.RCLONE_CONFIG_DATA }}
           EOF
 
-      - name: Gravar Video e Chat Sincronizados
+      - name: Gravar Video
         run: |
           echo "Checando se o canal snopey esta ao vivo na Kick..."
           DATA=$(date +%d-%m-%Y)
           
           if streamlink kick.com/snopey best --stream-url > /dev/null 2>&1; then
-            echo "Canal online na Kick! Iniciando gravacao sincronizada..."
-            python chat2.py &
-            CHAT_PID=$!
-            sleep 3
-            
-            # Comando de gravação alterado para a Kick
+            echo "Canal online na Kick! Iniciando gravacao..."
             streamlink kick.com/snopey best -o "snopey_kick_${DATA}.mp4"
-            
-            kill -SIGINT $CHAT_PID 2>/dev/null || true
-            sleep 5 
           else
             echo "Canal offline na Kick. Nenhuma gravacao iniciada."
           fi
 
-      - name: Enviar Video E Chat para o Google Drive
+      - name: Enviar Video para o Google Drive
         if: always()
         run: |
           if ls *.mp4 1> /dev/null 2>&1; then
             echo "Enviando arquivos para o Google Drive..."
-            rclone copy . gdrive01:Lives_Gravadas --include "*.mp4" --include "*.json" -v
-            rm -f *.mp4 *.json
+            rclone copy . gdrive01:Lives_Gravadas --include "*.mp4" -v
+            rm -f *.mp4
           else
             echo "Nenhum arquivo para enviar."
           fi
