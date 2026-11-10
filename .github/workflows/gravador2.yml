@@ -45,7 +45,13 @@ jobs:
           echo "Checando se o canal eudinha_ esta ao vivo na Twitch..."
           DATA=$(date +%d-%m-%Y)
           
-          if streamlink twitch.tv/eudinha_ best --stream-url > /dev/null 2>&1; then
+          # Adicionamos 'set +e' para evitar que o workflow falhe caso o comando retorne erro por estar offline
+          set +e
+          streamlink twitch.tv/eudinha_ best --stream-url > /dev/null 2>&1
+          STATUS=$?
+          set -e
+
+          if [ $STATUS -eq 0 ]; then
             echo "Canal eudinha_ online na Twitch! Iniciando gravacao..."
             streamlink twitch.tv/eudinha_ best -o "eudinha_twitch_${DATA}.mp4"
           else
