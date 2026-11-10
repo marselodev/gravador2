@@ -2,11 +2,9 @@ name: gravador2
 
 on:
   schedule:
-    # Roda a cada 15 minutos, entre 14:00 e 22:59 (Horário de Brasília)
     - cron: '*/15 17-23,0-1 * * *'
   workflow_dispatch:
 
-# Evita que o GitHub abra duas gravações ao mesmo tempo
 concurrency:
   group: gravacao
   cancel-in-progress: false
