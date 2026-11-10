@@ -40,28 +40,19 @@ jobs:
           ${{ secrets.RCLONE_CONFIG_DATA }}
           EOF
 
-      - name: Gravar Videos (Kick e Twitch)
+      - name: Gravar Video da Twitch
         run: |
-          echo "Iniciando checagem dos canais..."
+          echo "Checando se o canal eudinha_ esta ao vivo na Twitch..."
           DATA=$(date +%d-%m-%Y)
           
-          # 1. Checar e gravar Kick (snopey)
-          if streamlink kick.com/snopey best --stream-url > /dev/null 2>&1; then
-            echo "Canal snopey online na Kick! Iniciando gravacao..."
-            streamlink kick.com/snopey best -o "snopey_kick_${DATA}.mp4"
-          else
-            echo "Canal snopey offline na Kick."
-          fi
-
-          # 2. Checar e gravar Twitch (eudinha_)
           if streamlink twitch.tv/eudinha_ best --stream-url > /dev/null 2>&1; then
             echo "Canal eudinha_ online na Twitch! Iniciando gravacao..."
             streamlink twitch.tv/eudinha_ best -o "eudinha_twitch_${DATA}.mp4"
           else
-            echo "Canal eudinha_ offline na Twitch."
+            echo "Canal eudinha_ offline na Twitch. Nenhuma gravacao iniciada."
           fi
 
-      - name: Enviar Videos para o Google Drive
+      - name: Enviar Video para o Google Drive
         if: always()
         run: |
           if ls *.mp4 1> /dev/null 2>&1; then
