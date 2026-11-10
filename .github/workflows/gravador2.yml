@@ -1,9 +1,8 @@
 name: gravador2
 
 on:
-  schedule:
-    # Roda a cada 15 minutos, entre 14:00 e 22:59 (Horário de Brasília)
-    - cron: '*/15 17-23,0-1 * * *'
+  # Roda a cada 15 minutos, entre 14:00 e 22:59 (Horário de Brasília)
+  - cron: '*/15 17-23,0-1 * * *'
   workflow_dispatch:
 
 # Evita que o GitHub abra duas gravações ao mesmo tempo
@@ -41,19 +40,28 @@ jobs:
           ${{ secrets.RCLONE_CONFIG_DATA }}
           EOF
 
-      - name: Gravar Video
+      - name: Gravar Videos (Kick e Twitch)
         run: |
-          echo "Checando se o canal snopey esta ao vivo na Kick..."
+          echo "Iniciando checagem dos canais..."
           DATA=$(date +%d-%m-%Y)
           
+          # 1. Checar e gravar Kick (snopey)
           if streamlink kick.com/snopey best --stream-url > /dev/null 2>&1; then
-            echo "Canal online na Kick! Iniciando gravacao..."
+            echo "Canal snopey online na Kick! Iniciando gravacao..."
             streamlink kick.com/snopey best -o "snopey_kick_${DATA}.mp4"
           else
-            echo "Canal offline na Kick. Nenhuma gravacao iniciada."
+            echo "Canal snopey offline na Kick."
           fi
 
-      - name: Enviar Video para o Google Drive
+          # 2. Checar e gravar Twitch (eudinha_)
+          if streamlink twitch.tv/eudinha_ best --stream-url > /dev/null 2>&1; then
+            echo "Canal eudinha_ online na Twitch! Iniciando gravacao..."
+            streamlink twitch.tv/eudinha_ best -o "eudinha_twitch_${DATA}.mp4"
+          else
+            echo "Canal eudinha_ offline na Twitch."
+          fi
+
+      - name: Enviar Videos para o Google Drive
         if: always()
         run: |
           if ls *.mp4 1> /dev/null 2>&1; then
