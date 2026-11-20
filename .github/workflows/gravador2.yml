@@ -1,4 +1,4 @@
-name: Gravador 2
+name: Gravador
 
 on:
   schedule:
@@ -8,7 +8,7 @@ on:
 
 # Evita que o GitHub abra duas gravações ao mesmo tempo
 concurrency:
-  group: gravacao_2
+  group: gravacao
   cancel-in-progress: false
 
 jobs:
@@ -71,7 +71,7 @@ jobs:
         run: |
           if ls *.mp4 1> /dev/null 2>&1; then
             echo "Enviando arquivos para o Google Drive..."
-            rclone copy . gdrive01:Lives_Gravadas --include "*.mp4" --include "*.json" -v
+            rclone copy . gdrive01:Lives_Gravadas --include "*.mp4" --include "*.json" --drive-chunk-size 64M --tpslimit 2 --retries 10 --low-level-retries 20 -v
             rm -f *.mp4 *.json
           else
             echo "Nenhum arquivo para enviar."
