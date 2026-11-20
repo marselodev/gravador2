@@ -1,4 +1,4 @@
-name: Gravador
+name: Gravador 2
 
 on:
   schedule:
@@ -8,7 +8,7 @@ on:
 
 # Evita que o GitHub abra duas gravações ao mesmo tempo
 concurrency:
-  group: gravacao
+  group: gravacao_2
   cancel-in-progress: false
 
 jobs:
@@ -43,24 +43,24 @@ jobs:
 
       - name: Gravar Video e Chat Sincronizados
         run: |
-          echo "Checando se o canal marselu1 esta ao vivo..."
+          echo "Checando se o canal snopey esta ao vivo..."
           DATA=$(date +%d-%m-%Y)
           
-          # 1. Checa a Twitch primeiro (grava vídeo + chat por 2 minutos)
-          if streamlink twitch.tv/marselu1 best --stream-url > /dev/null 2>&1; then
-            echo "Canal online na Twitch! Iniciando gravacao sincronizada de teste (2 minutos)..."
+          # 1. Checa a Twitch primeiro (grava vídeo + chat por até 5h20m)
+          if streamlink twitch.tv/snopey best --stream-url > /dev/null 2>&1; then
+            echo "Canal online na Twitch! Iniciando gravacao sincronizada por no maximo 5h20m..."
             python gravador3.py &
             CHAT_PID=$!
             sleep 3
-            timeout -s INT 2m streamlink twitch.tv/marselu1 best --twitch-disable-hosting --twitch-low-latency -o "marselu1_twitch_${DATA}.mp4" || true
+            timeout -s INT 320m streamlink twitch.tv/snopey best --twitch-disable-hosting --twitch-low-latency -o "snopey_twitch_${DATA}.mp4" || true
             
             kill -SIGINT $CHAT_PID 2>/dev/null || true
             sleep 5
 
-          # 2. Se não estiver na Twitch, checa a Kick (grava vídeo por 2 minutos)
-          elif streamlink kick.com/marselu1 best --stream-url > /dev/null 2>&1; then
-            echo "Canal online na Kick! Iniciando gravacao de teste (2 minutos)..."
-            timeout -s INT 2m streamlink kick.com/marselu1 best -o "marselu1_kick_${DATA}.mp4" || true
+          # 2. Se não estiver na Twitch, checa a Kick (grava vídeo por até 5h20m)
+          elif streamlink kick.com/snopey best --stream-url > /dev/null 2>&1; then
+            echo "Canal online na Kick! Iniciando gravacao por no maximo 5h20m..."
+            timeout -s INT 320m streamlink kick.com/snopey best -o "snopey_kick_${DATA}.mp4" || true
 
           else
             echo "Canal offline na Twitch e na Kick. Nenhuma gravacao iniciada."
