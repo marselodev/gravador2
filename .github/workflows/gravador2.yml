@@ -46,21 +46,27 @@ jobs:
           echo "Checando se o canal snopey esta ao vivo..."
           DATA=$(date +%d-%m-%Y)
           
-          # 1. Checa a Twitch primeiro (grava vídeo + chat por até 5h20m)
+          # 1. Checa a Twitch primeiro
           if streamlink twitch.tv/snopey best --stream-url > /dev/null 2>&1; then
-            echo "Canal online na Twitch! Iniciando gravacao sincronizada por no maximo 5h20m..."
+            echo "Canal online na Twitch! Iniciando gravacao..."
             python gravador3.py &
             CHAT_PID=$!
             sleep 3
-            timeout -s INT 320m streamlink twitch.tv/snopey best --twitch-disable-hosting --twitch-low-latency -o "snopey_twitch_${DATA}.mp4" || true
+            timeout -s INT 320m streamlink twitch.tv/snopey best --twitch-disable-hosting --twitch-low-latency -o "live_twitch_${DATA}.mp4" || true
             
             kill -SIGINT $CHAT_PID 2>/dev/null || true
             sleep 5
 
-          # 2. Se não estiver na Twitch, checa a Kick (grava vídeo por até 5h20m)
+          # 2. Se estiver offline na Twitch, checa a Kick
           elif streamlink kick.com/snopey best --stream-url > /dev/null 2>&1; then
-            echo "Canal online na Kick! Iniciando gravacao por no maximo 5h20m..."
-            timeout -s INT 320m streamlink kick.com/snopey best -o "snopey_kick_${DATA}.mp4" || true
+            echo "Canal online na Kick! Iniciando gravacao..."
+            python gravador3.py &
+            CHAT_PID=$!
+            sleep 3
+            timeout -s INT 320m streamlink kick.com/snopey best -o "live_kick_${DATA}.mp4" || true
+            
+            kill -SIGINT $CHAT_PID 2>/dev/null || true
+            sleep 5
 
           else
             echo "Canal offline na Twitch e na Kick. Nenhuma gravacao iniciada."
@@ -71,7 +77,7 @@ jobs:
         run: |
           if ls *.mp4 1> /dev/null 2>&1; then
             echo "Enviando arquivos para o Google Drive..."
-            rclone copy . gdrive01:Lives_Gravadas --include "*.mp4" --include "*.json" -v
+            rclone copy . gdrive01:Lives_Gravadas --include "*.mp4" --include "*.json" --drive-chunk-size 64M --tpslimit 2 --retries 10 --low-level-retries 20 -v
             rm -f *.mp4 *.json
           else
             echo "Nenhum arquivo para enviar."
