@@ -43,33 +43,22 @@ jobs:
 
       - name: Gravar Video e Chat Sincronizados
         run: |
-          echo "Checando se o canal snopey esta ao vivo..."
+          echo "Checando se o canal marselu1 esta ao vivo..."
           DATA=$(date +%d-%m-%Y)
           
-          # 1. Checa a Twitch primeiro
-          if streamlink twitch.tv/snopey best --stream-url > /dev/null 2>&1; then
-            echo "Canal online na Twitch! Iniciando gravacao..."
+          # 1. Checa a Twitch primeiro (grava 1 minuto para teste)
+          if streamlink twitch.tv/marselu1 best --stream-url > /dev/null 2>&1; then
+            echo "Canal online na Twitch! Iniciando gravacao de teste por 1 minuto..."
             python gravador3.py &
             CHAT_PID=$!
             sleep 3
-            timeout -s INT 320m streamlink twitch.tv/snopey best --twitch-disable-hosting --twitch-low-latency -o "live_twitch_${DATA}.mp4" || true
-            
-            kill -SIGINT $CHAT_PID 2>/dev/null || true
-            sleep 5
-
-          # 2. Se estiver offline na Twitch, checa a Kick
-          elif streamlink kick.com/snopey best --stream-url > /dev/null 2>&1; then
-            echo "Canal online na Kick! Iniciando gravacao..."
-            python gravador3.py &
-            CHAT_PID=$!
-            sleep 3
-            timeout -s INT 320m streamlink kick.com/snopey best -o "live_kick_${DATA}.mp4" || true
+            timeout -s INT 1m streamlink twitch.tv/marselu1 best --twitch-disable-hosting --twitch-low-latency -o "teste2_twitch_${DATA}.mp4" || true
             
             kill -SIGINT $CHAT_PID 2>/dev/null || true
             sleep 5
 
           else
-            echo "Canal offline na Twitch e na Kick. Nenhuma gravacao iniciada."
+            echo "Canal offline na Twitch. Nenhuma gravacao iniciada."
           fi
 
       - name: Enviar Video E Chat para o Google Drive
