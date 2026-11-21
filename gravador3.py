@@ -181,7 +181,7 @@ def monitorar_e_gravar():
             return
             
         data_simples = datetime.now().strftime("%d-%m-%Y")
-        nome_json = f"chat_{STREAMER_NAME}_{data_simples}.json"
+        nome_json = f"chat_{STREAMER_NAME}2_{data_simples}.json"
         
         duracao_final = float(comments[-1]["content_offset_seconds"]) if comments else 0.0
 
