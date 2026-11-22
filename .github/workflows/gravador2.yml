@@ -44,7 +44,7 @@ jobs:
       - name: Gravar Video e Chat Sincronizados
         run: |
           echo "Checando se o canal snopey esta ao vivo..."
-          DATA=$(date +%d-%m-%Y)
+          DATA=$(date +%d-%m-%Y_%H-%M)
           
           # 1. Checa a Twitch primeiro
           if streamlink twitch.tv/snopey best --stream-url > /dev/null 2>&1; then
@@ -52,7 +52,7 @@ jobs:
             python gravador3.py &
             CHAT_PID=$!
             sleep 3
-            timeout -s INT 320m streamlink twitch.tv/snopey best --twitch-disable-hosting --twitch-low-latency -o "live_twitch2_${DATA}.mp4" || true
+            timeout -s INT 240m streamlink twitch.tv/snopey best --twitch-disable-hosting --twitch-low-latency -o "live_twitch2_${DATA}.mp4" || true
             
             kill -SIGINT $CHAT_PID 2>/dev/null || true
             sleep 5
@@ -63,7 +63,7 @@ jobs:
             python gravador3.py &
             CHAT_PID=$!
             sleep 3
-            timeout -s INT 320m streamlink kick.com/snopey best -o "live_kick2_${DATA}.mp4" || true
+            timeout -s INT 240m streamlink kick.com/snopey best -o "live_kick2_${DATA}.mp4" || true
             
             kill -SIGINT $CHAT_PID 2>/dev/null || true
             sleep 5
@@ -76,8 +76,27 @@ jobs:
         if: always()
         run: |
           if ls *.mp4 1> /dev/null 2>&1; then
+            echo "Ativando proxy Cloudflare WARP para evitar bloqueio de IP..."
+            curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+            echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+            sudo apt-get update && sudo apt-get install -y cloudflare-warp
+            warp-cli --accept-tos registration new
+            warp-cli --accept-tos mode proxy
+            warp-cli --accept-tos proxy port 40000
+            warp-cli --accept-tos connect
+            sleep 5
+
             echo "Enviando arquivos para o Google Drive..."
-            rclone copy . gdrive01:Lives_Gravadas --include "*.mp4" --include "*.json" --drive-chunk-size 64M --tpslimit 2 --retries 10 --low-level-retries 20 -v
+            ALL_PROXY=socks5://127.0.0.1:40000 rclone copy . gdrive01:Lives_Gravadas \
+              --include "*.mp4" \
+              --include "*.json" \
+              --drive-chunk-size 64M \
+              --tpslimit 2 \
+              --bwlimit 70M \
+              --retries 10 \
+              --low-level-retries 20 \
+              -v
+
             rm -f *.mp4 *.json
           else
             echo "Nenhum arquivo para enviar."
