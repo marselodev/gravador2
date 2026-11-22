@@ -52,7 +52,7 @@ jobs:
             python gravador3.py &
             CHAT_PID=$!
             sleep 3
-            timeout -s INT 240m streamlink twitch.tv/snopey best --twitch-disable-hosting --twitch-low-latency -o "live_twitch2_${DATA}.mp4" || true
+            timeout -s INT 260m streamlink twitch.tv/snopey best --twitch-disable-hosting --twitch-low-latency -o "live_twitch2_${DATA}.mp4" || true
             
             kill -SIGINT $CHAT_PID 2>/dev/null || true
             sleep 5
@@ -63,7 +63,7 @@ jobs:
             python gravador3.py &
             CHAT_PID=$!
             sleep 3
-            timeout -s INT 240m streamlink kick.com/snopey best -o "live_kick2_${DATA}.mp4" || true
+            timeout -s INT 260m streamlink kick.com/snopey best -o "live_kick2_${DATA}.mp4" || true
             
             kill -SIGINT $CHAT_PID 2>/dev/null || true
             sleep 5
